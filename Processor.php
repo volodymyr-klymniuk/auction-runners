@@ -6,8 +6,9 @@ require_once("AuctionInterface.php");
 require_once("CarouselInterface.php");
 require_once ("BuyerModel.php");
 require_once ("BetModel.php");
+require_once ("ProcessorInterface.php");
 
-class Processor
+class Processor implements ProcessorInterface
 {
     /**
      * @var AuctionInterface
@@ -22,15 +23,34 @@ class Processor
     /**
      * @throws Exception
      */
-    public function execute(array $buyers = [], array $bets = [])
+    public function execute(array $buyers = [], array $bets = []): void
     {
         $auctionId = $this->auctionService->start();
+        // Greedy load
         $buyers = $this->fetchBuyers($auctionId, $buyers, $bets);
-
         $this->auctionService->loadAuctionMembersActions($auctionId, $buyers);
         $winner = $this->auctionService->getWinner($auctionId);
 
-        var_dump($winner->getBuyer()->getName(), $winner->getPrice());
+
+        $auctionId2 = $this->auctionService->start();
+        // Lightweight load
+        foreach ($this->fetchBuyersGenerator($auctionId2, $buyers, $bets) as $member) {
+            $this->auctionService->loadAuctionMember($auctionId2, $member);
+        }
+
+        $winner2 = $this->auctionService->getWinner($auctionId2);
+    }
+
+    private function fetchBuyersGenerator(string $auctionId, array $buyers = [], array $bets = []): iterable
+    {
+        foreach ($buyers as $key => $buyer) {
+            $b = new BuyerModel($buyer);
+            foreach ($bets[$key] as $bet) {
+                $b->addBet($auctionId, (new BetModel($bet)));
+            }
+
+            yield $b;
+        }
     }
 
     /**
@@ -50,7 +70,6 @@ class Processor
                  $b->addBet($auctionId, (new BetModel($bet)));
              }
 
-             // yield
              $tmp[] = $b;
          }
 

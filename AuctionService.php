@@ -23,6 +23,7 @@ class AuctionService implements CarouselInterface
      * @param array|BuyerModel[] $buyers
      *
      * @return void
+     * @throws Exception
      */
     public function loadAuctionMembersActions(string $auctionId, array $buyers)
     {
@@ -48,6 +49,22 @@ class AuctionService implements CarouselInterface
             foreach ($bets as $bet) {
                 $auction->loadBid(new BidModel($bet, $buyer));
             }
+        }
+    }
+
+    public function loadAuctionMember(string $auctionId, BuyerModel $buyer): void
+    {
+        $auction = $this->getAuction($auctionId);
+
+        if (false === $auction->isActive()) {
+            throw new \Exception(\sprintf(
+                "Auction id %s is closed. Can not load new members",
+                $auctionId
+            ));
+        }
+
+        foreach ($buyer->getAuctionBets($auctionId) as $bet) {
+            $auction->loadBid(new BidModel($bet, $buyer));
         }
     }
 
