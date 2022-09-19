@@ -1,6 +1,7 @@
 <?php
 
 require_once("AuctionInterface.php");
+require_once("WinnerModel.php");
 
 class Auction implements AuctionInterface
 {
@@ -65,18 +66,33 @@ class Auction implements AuctionInterface
             return null;
         }
 
-        $this->rate = usort($this->rate, function($a, $b) {
-            return $a > $b;
-        });
+        if (1 === $length) {
+            $this->setWinner(
+                new WinnerModel(
+                    $this->rate[$length]->getBet()->getPrice(),
+                    $this->rate[$length],
+                    $this->rate[$length]->getBuyer()
+                )
+            );
 
+            return $this->winner;
+        }
+
+        usort($this->rate, function(BidModel $a, BidModel$b) {
+            /** @var BidModel a */
+            /** @var BidModel b */
+            return $a->getBet() > $b->getBet();
+        });
 
         $this->setWinner(
             new WinnerModel(
-                $this->rate[$length - 1]->getBet(),
-                $this->rate[$length],
-                $this->rate[$length]->getBuyer()
+                $this->rate[$length -2]->getBet()->getPrice(),
+                $this->rate[$length -1],
+                $this->rate[$length -1]->getBuyer()
             )
         );
+
+        return $this->winner;
     }
 
     public function isActive(): bool
@@ -93,8 +109,10 @@ class Auction implements AuctionInterface
         $this->state = false;
     }
 
-    private function setWinner(WinnerModel $winner): void
+    private function setWinner(WinnerModel $winner): Auction
     {
         $this->winner = $winner;
+
+        return $this;
     }
 }
